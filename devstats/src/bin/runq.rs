@@ -1,7 +1,7 @@
-use devstats::lib;
-
 use std::time::SystemTime;
 use std::{env, process};
+
+use devstats::lib;
 
 fn runq(sql_file: &String, params: &[String]) -> lib::Ctx {
     // xxx
