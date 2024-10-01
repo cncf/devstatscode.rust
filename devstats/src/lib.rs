@@ -1,6 +1,7 @@
 pub mod lib {
     use regex::Regex;
     use std::collections::{HashMap, HashSet};
+    use std::env;
     use std::time::{Duration, SystemTime};
 
     #[derive(Debug)]
@@ -144,6 +145,21 @@ pub mod lib {
         pub refresh_commit_roles: bool, // From GHA2DB_REFRESH_COMMIT_ROLES - will process all commiths in DB and for every single one of them it will generate gha_commits_roles entries.
         pub allow_rand_tags_cols_compute: bool, // If set, then tags and columns will only be computed at random 0-5 hour, otherwise always when hour<6.
     }
+
+    fn env_is_set(var_name: &str) -> bool {
+        match env::var(var_name) {
+            Ok(_) => true,
+            _ => false,
+        }
+    }
+
+    fn env_is_empty(var_name: &str) -> bool {
+        match env::var(var_name) {
+            Ok(s) => s == "",
+            _ => true,
+        }
+    }
+
     impl Ctx {
         pub fn new() -> Self {
             Default::default()
@@ -151,7 +167,705 @@ pub mod lib {
     }
     impl Default for Ctx {
         fn default() -> Self {
-            Ctx { debug: 0 }
+            // xxx
+            /*
+            // Initialize env syncer once
+            syncerOnce.Do(func() {
+                UpdateEnv(false)
+                go EnvSyncer()
+            })
+            */
+
+            let exec_fatal = true;
+            let exec_quiet = false;
+            let exec_output = false;
+            let can_reconnect = true;
+            let rand_compute_at_this_date = true;
+            let allow_rand_tags_cols_compute = false;
+
+            // Commits analysis
+            let commits_files_stats_enabled = env_is_empty("GHA2DB_SKIP_COMMITS_FILES");
+            let commits_loc_stats_enabled = env_is_empty("GHA2DB_SKIP_COMMITS_LOC");
+
+            Ctx {
+                exec_fatal: exec_fatal,
+                exec_quiet: exec_quiet,
+                exec_output: exec_output,
+                can_reconnect: can_reconnect,
+                rand_compute_at_this_date: rand_compute_at_this_date,
+                allow_rand_tags_cols_compute: allow_rand_tags_cols_compute,
+                commits_files_stats_enabled: commits_files_stats_enabled,
+                commits_loc_stats_enabled: commits_loc_stats_enabled,
+            }
+            /*
+            // Data directory
+            ctx.DataDir = os.Getenv("GHA2DB_DATADIR")
+            if ctx.DataDir == "" {
+                ctx.DataDir = DefaultDataDir
+            }
+            if ctx.DataDir[len(ctx.DataDir)-1:] != "/" {
+                ctx.DataDir += "/"
+            }
+
+            // Outputs
+            ctx.JSONOut = os.Getenv("GHA2DB_JSON") != ""
+            ctx.DBOut = os.Getenv("GHA2DB_NODB") == ""
+
+            // Dry run
+            ctx.DryRun = os.Getenv("GHA2DB_DRY_RUN") != ""
+
+            // GitHub API points and waiting for reset
+            ctx.MinGHAPIPoints = 1
+            if os.Getenv("GHA2DB_MIN_GHAPI_POINTS") != "" {
+                pts, err := strconv.Atoi(os.Getenv("GHA2DB_MIN_GHAPI_POINTS"))
+                FatalNoLog(err)
+                if pts >= 0 {
+                    ctx.MinGHAPIPoints = pts
+                }
+            }
+            ctx.MaxGHAPIWaitSeconds = 10
+            if os.Getenv("GHA2DB_MAX_GHAPI_WAIT") != "" {
+                secs, err := strconv.Atoi(os.Getenv("GHA2DB_MAX_GHAPI_WAIT"))
+                FatalNoLog(err)
+                if secs >= 0 {
+                    ctx.MaxGHAPIWaitSeconds = secs
+                }
+            }
+            ctx.MaxGHAPIRetry = 6
+            if os.Getenv("GHA2DB_MAX_GHAPI_RETRY") != "" {
+                tr, err := strconv.Atoi(os.Getenv("GHA2DB_MAX_GHAPI_RETRY"))
+                FatalNoLog(err)
+                if tr >= 1 {
+                    ctx.MaxGHAPIRetry = tr
+                }
+            }
+
+            // Debug
+            if os.Getenv("GHA2DB_DEBUG") == "" {
+                ctx.Debug = 0
+            } else {
+                debugLevel, err := strconv.Atoi(os.Getenv("GHA2DB_DEBUG"))
+                FatalNoLog(err)
+                if debugLevel != 0 {
+                    ctx.Debug = debugLevel
+                }
+            }
+            // CmdDebug
+            if os.Getenv("GHA2DB_CMDDEBUG") == "" {
+                ctx.CmdDebug = 0
+            } else {
+                debugLevel, err := strconv.Atoi(os.Getenv("GHA2DB_CMDDEBUG"))
+                FatalNoLog(err)
+                ctx.CmdDebug = debugLevel
+            }
+            // GitHubDebug
+            if os.Getenv("GHA2DB_GITHUB_DEBUG") == "" {
+                ctx.GitHubDebug = 0
+            } else {
+                debugLevel, err := strconv.Atoi(os.Getenv("GHA2DB_GITHUB_DEBUG"))
+                FatalNoLog(err)
+                ctx.GitHubDebug = debugLevel
+            }
+            ctx.QOut = os.Getenv("GHA2DB_QOUT") != ""
+            ctx.CtxOut = os.Getenv("GHA2DB_CTXOUT") != ""
+
+            // Threading
+            ctx.SetCPUs()
+
+            // Postgres DB
+            ctx.PgHost = os.Getenv("PG_HOST")
+            ctx.PgPort = os.Getenv("PG_PORT")
+            ctx.PgDB = os.Getenv("PG_DB")
+            ctx.PgUser = os.Getenv("PG_USER")
+            ctx.PgPass = os.Getenv("PG_PASS")
+            ctx.PgSSL = os.Getenv("PG_SSL")
+            if ctx.PgHost == "" {
+                ctx.PgHost = Localhost
+            }
+            if ctx.PgPort == "" {
+                ctx.PgPort = "5432"
+            }
+            if ctx.PgDB == "" {
+                ctx.PgDB = GHA
+            }
+            if ctx.PgUser == "" {
+                ctx.PgUser = GHAAdmin
+            }
+            if ctx.PgPass == "" {
+                ctx.PgPass = Password
+            }
+            if ctx.PgSSL == "" {
+                ctx.PgSSL = "disable"
+            }
+
+            // PID file
+            ctx.PidFileRoot = os.Getenv("GHA2DB_PID_FILE_ROOT")
+            if ctx.PidFileRoot == "" {
+                ctx.PidFileRoot = Devstats
+            }
+
+            // Environment controlling index creation, table & tools
+            ctx.Index = os.Getenv("GHA2DB_INDEX") != ""
+            ctx.Table = os.Getenv("GHA2DB_SKIPTABLE") == ""
+            ctx.Tools = os.Getenv("GHA2DB_SKIPTOOLS") == ""
+            ctx.Mgetc = os.Getenv("GHA2DB_MGETC")
+            if len(ctx.Mgetc) > 1 {
+                ctx.Mgetc = ctx.Mgetc[:1]
+            }
+
+            // Log Time
+            ctx.LogTime = os.Getenv("GHA2DB_SKIPTIME") == ""
+
+            // Time offset for gha2db_sync
+            if os.Getenv("GHA2DB_TMOFFSET") == "" {
+                ctx.TmOffset = 0
+            } else {
+                off, err := strconv.Atoi(os.Getenv("GHA2DB_TMOFFSET"))
+                FatalNoLog(err)
+                ctx.TmOffset = off
+            }
+
+            // Default start date
+            if os.Getenv("GHA2DB_STARTDT") != "" {
+                ctx.DefaultStartDate = TimeParseAny(os.Getenv("GHA2DB_STARTDT"))
+            } else {
+                ctx.DefaultStartDate = time.Date(2012, 7, 1, 0, 0, 0, 0, time.UTC)
+            }
+            ctx.ForceStartDate = false
+            if os.Getenv("GHA2DB_STARTDT_FORCE") != "" {
+                ctx.ForceStartDate = true
+            }
+
+            // Skip ghapi2db and/or get_repos
+            ctx.SkipGetRepos = os.Getenv("GHA2DB_GETREPOSSKIP") != ""
+            ctx.SkipGHAPI = os.Getenv("GHA2DB_GHAPISKIP") != ""
+            ctx.SkipAPIEvents = os.Getenv("GHA2DB_GHAPISKIPEVENTS") != ""
+            ctx.SkipAPICommits = os.Getenv("GHA2DB_GHAPISKIPCOMMITS") != ""
+            ctx.SkipAPILicenses = os.Getenv("GHA2DB_GHAPISKIPLICENSES") != ""
+            ctx.ForceAPILicenses = os.Getenv("GHA2DB_GHAPIFORCELICENSES") != ""
+            ctx.SkipAPILangs = os.Getenv("GHA2DB_GHAPISKIPLANGS") != ""
+            ctx.ForceAPILangs = os.Getenv("GHA2DB_GHAPIFORCELANGS") != ""
+            ctx.GHAPIErrorIsFatal = os.Getenv("GHA2DB_GHAPI_ERROR_FATAL") != ""
+            ctx.AutoFetchCommits = os.Getenv("GHA2DB_NO_AUTOFETCHCOMMITS") == ""
+
+            // Last TS series
+            ctx.LastSeries = os.Getenv("GHA2DB_LASTSERIES")
+            if ctx.LastSeries == "" {
+                ctx.LastSeries = "events_h"
+            }
+
+            // Skip some tools
+            ctx.SkipTags = os.Getenv("GHA2DB_SKIP_TAGS") != ""
+            ctx.SkipAnnotations = os.Getenv("GHA2DB_SKIP_ANNOTATIONS") != ""
+            ctx.SkipColumns = os.Getenv("GHA2DB_SKIP_COLUMNS") != ""
+            ctx.RunColumns = os.Getenv("GHA2DB_RUN_COLUMNS") != ""
+            ctx.SkipVars = os.Getenv("GHA2DB_SKIP_VARS") != ""
+
+            // Skip randomizing task order
+            ctx.SkipRand = os.Getenv("GHA2DB_SKIP_RAND") != ""
+
+            // TS variables
+            ctx.SkipTSDB = os.Getenv("GHA2DB_SKIPTSDB") != ""
+            ctx.ResetTSDB = os.Getenv("GHA2DB_RESETTSDB") != ""
+            ctx.ResetRanges = os.Getenv("GHA2DB_RESETRANGES") != ""
+
+            // Allow broken JSON
+            ctx.AllowBrokenJSON = os.Getenv("GHA2DB_ALLOW_BROKEN_JSON") != ""
+
+            // Run website_data tool after sync
+            ctx.WebsiteData = os.Getenv("GHA2DB_WEBSITEDATA") != ""
+
+            // Disable delete & recreate past events
+            ctx.SkipUpdateEvents = os.Getenv("GHA2DB_SKIP_UPDATE_EVENTS") != ""
+
+            // Postgres DB variables
+            ctx.SkipPDB = os.Getenv("GHA2DB_SKIPPDB") != ""
+
+            // Explain
+            ctx.Explain = os.Getenv("GHA2DB_EXPLAIN") != ""
+
+            // Old (pre 2015) GHA JSONs format
+            ctx.OldFormat = os.Getenv("GHA2DB_OLDFMT") != ""
+
+            // Exact repository full names to match
+            ctx.Exact = os.Getenv("GHA2DB_EXACT") != ""
+
+            // Log to Postgres DB, table `devstats`.`gha_logs`
+            ctx.LogToDB = os.Getenv("GHA2DB_SKIPLOG") == ""
+
+            // Local data files mode
+            ctx.Local = os.Getenv("GHA2DB_LOCAL") != ""
+
+            // Local binary/shell files mode
+            ctx.LocalCmd = os.Getenv("GHA2DB_LOCAL_CMD") != ""
+
+            // Absolute data files mode
+            ctx.Absolute = os.Getenv("GHA2DB_ABSOLUTE") != ""
+
+            // Project
+            ctx.Project = os.Getenv("GHA2DB_PROJECT")
+            proj := ""
+            if ctx.Project != "" {
+                proj = ctx.Project + "/"
+            }
+
+            // YAML config files
+            ctx.MetricsYaml = os.Getenv("GHA2DB_METRICS_YAML")
+            ctx.TagsYaml = os.Getenv("GHA2DB_TAGS_YAML")
+            ctx.ColumnsYaml = os.Getenv("GHA2DB_COLUMNS_YAML")
+            ctx.VarsYaml = os.Getenv("GHA2DB_VARS_YAML")
+            ctx.VarsFnYaml = os.Getenv("GHA2DB_VARS_FN_YAML")
+            if ctx.VarsFnYaml == "" {
+                ctx.VarsFnYaml = "vars.yaml"
+            }
+            if ctx.MetricsYaml == "" {
+                ctx.MetricsYaml = "metrics/" + proj + "metrics.yaml"
+            }
+            if ctx.TagsYaml == "" {
+                ctx.TagsYaml = "metrics/" + proj + "tags.yaml"
+            }
+            if ctx.ColumnsYaml == "" {
+                ctx.ColumnsYaml = "metrics/" + proj + "columns.yaml"
+            }
+            if ctx.VarsYaml == "" {
+                ctx.VarsYaml = "metrics/" + proj + ctx.VarsFnYaml
+            }
+
+            // GitHub OAuth
+            ctx.GitHubOAuth = os.Getenv("GHA2DB_GITHUB_OAUTH")
+            if ctx.GitHubOAuth == "" {
+                fn := "/etc/github/oauths"
+                _, err := os.Stat(fn)
+                if err == nil {
+                    ctx.GitHubOAuth = fn
+                } else if os.IsNotExist(err) {
+                    fn = "/etc/github/oauth"
+                    _, err := os.Stat(fn)
+                    if err == nil {
+                        ctx.GitHubOAuth = fn
+                    } else if os.IsNotExist(err) {
+                        ctx.GitHubOAuth = "-"
+                    } else {
+                        FatalNoLog(err)
+                    }
+                } else {
+                    FatalNoLog(err)
+                }
+            }
+
+            // Max DB logs age
+            ctx.ClearDBPeriod = os.Getenv("GHA2DB_MAXLOGAGE")
+            if ctx.ClearDBPeriod == "" {
+                ctx.ClearDBPeriod = "1 week"
+            }
+
+            // Max locks ages
+            ctx.ClearAffsLockPeriod = os.Getenv("GHA2DB_MAX_AFFS_LOCK_AGE")
+            if ctx.ClearAffsLockPeriod == "" {
+                ctx.ClearAffsLockPeriod = "16 hours"
+            }
+            ctx.ClearGiantLockPeriod = os.Getenv("GHA2DB_MAX_GIANT_LOCK_AGE")
+            if ctx.ClearGiantLockPeriod == "" {
+                ctx.ClearGiantLockPeriod = "40 hours"
+            }
+
+            // Trials
+            trials := os.Getenv("GHA2DB_TRIALS")
+            if trials == "" {
+                ctx.Trials = []int{10, 30, 60, 120, 300, 600, 1200, 3600}
+            } else {
+                trialsArr := strings.Split(trials, ",")
+                for _, try := range trialsArr {
+                    iTry, err := strconv.Atoi(try)
+                    FatalNoLog(err)
+                    ctx.Trials = append(ctx.Trials, iTry)
+                }
+            }
+
+            // Deploy statuses and branches
+            branches := os.Getenv("GHA2DB_DEPLOY_BRANCHES")
+            if branches == "" {
+                ctx.DeployBranches = []string{"master"}
+            } else {
+                ctx.DeployBranches = strings.Split(branches, ",")
+            }
+            statuses := os.Getenv("GHA2DB_DEPLOY_STATUSES")
+            if statuses == "" {
+                ctx.DeployStatuses = []string{"Passed", "Fixed"}
+            } else {
+                ctx.DeployStatuses = strings.Split(statuses, ",")
+            }
+            types := os.Getenv("GHA2DB_DEPLOY_TYPES")
+            if types == "" {
+                ctx.DeployTypes = []string{"push"}
+            } else {
+                ctx.DeployTypes = strings.Split(types, ",")
+            }
+            results := os.Getenv("GHA2DB_DEPLOY_RESULTS")
+            if results == "" {
+                ctx.DeployResults = []int{0}
+            } else {
+                resultsArr := strings.Split(results, ",")
+                for _, result := range resultsArr {
+                    iResult, err := strconv.Atoi(result)
+                    FatalNoLog(err)
+                    ctx.DeployResults = append(ctx.DeployResults, iResult)
+                }
+            }
+            ctx.ProjectRoot = os.Getenv("GHA2DB_PROJECT_ROOT")
+
+            // Projects sync override
+            ctx.ProjectsOverride = make(map[string]bool)
+            overrides := os.Getenv("GHA2DB_PROJECTS_OVERRIDE")
+            if overrides != "" {
+                ary := strings.Split(overrides, ",")
+                for _, override := range ary {
+                    if override == "" {
+                        continue
+                    }
+                    project := override[1:]
+                    if project == "" {
+                        continue
+                    }
+                    mode := override[:1]
+                    if mode == "-" {
+                        ctx.ProjectsOverride[project] = false
+                    } else if mode == "+" {
+                        ctx.ProjectsOverride[project] = true
+                    }
+                }
+            }
+
+            // Exclude repos
+            excludes := os.Getenv("GHA2DB_EXCLUDE_REPOS")
+            ctx.ExcludeRepos = make(map[string]bool)
+            if excludes != "" {
+                excludeArray := strings.Split(excludes, ",")
+                for _, exclude := range excludeArray {
+                    if exclude != "" {
+                        ctx.ExcludeRepos[exclude] = true
+                    }
+                }
+            }
+
+            // Exclude vars
+            excludes = os.Getenv("GHA2DB_EXCLUDE_VARS")
+            ctx.ExcludeVars = make(map[string]bool)
+            if excludes != "" {
+                excludeArray := strings.Split(excludes, ",")
+                for _, exclude := range excludeArray {
+                    if exclude != "" {
+                        ctx.ExcludeVars[exclude] = true
+                    }
+                }
+            }
+
+            // Only vars
+            only := os.Getenv("GHA2DB_ONLY_VARS")
+            ctx.OnlyVars = make(map[string]bool)
+            if only != "" {
+                onlyArray := strings.Split(only, ",")
+                for _, onl := range onlyArray {
+                    if onl != "" {
+                        ctx.OnlyVars[onl] = true
+                    }
+                }
+            }
+
+            // Only metrics
+            onlyMetrics := os.Getenv("GHA2DB_ONLY_METRICS")
+            ctx.OnlyMetrics = make(map[string]bool)
+            if onlyMetrics != "" {
+                ary := strings.Split(onlyMetrics, ",")
+                for _, metric := range ary {
+                    if metric != "" {
+                        ctx.OnlyMetrics[metric] = true
+                    }
+                }
+            }
+
+            // Exclude metrics
+            excludes = os.Getenv("GHA2DB_SKIP_METRICS")
+            ctx.SkipMetrics = make(map[string]bool)
+            if excludes != "" {
+                excludeArray := strings.Split(excludes, ",")
+                for _, exclude := range excludeArray {
+                    if exclude != "" {
+                        ctx.SkipMetrics[exclude] = true
+                    }
+                }
+            }
+
+            // WebHook Host, Port, Root
+            ctx.WebHookHost = os.Getenv("GHA2DB_WHHOST")
+            if ctx.WebHookHost == "" {
+                ctx.WebHookHost = "127.0.0.1"
+            }
+            ctx.WebHookPort = os.Getenv("GHA2DB_WHPORT")
+            if ctx.WebHookPort == "" {
+                ctx.WebHookPort = ":1982"
+            } else {
+                if ctx.WebHookPort[0:1] != ":" {
+                    ctx.WebHookPort = ":" + ctx.WebHookPort
+                }
+            }
+            ctx.WebHookRoot = os.Getenv("GHA2DB_WHROOT")
+            if ctx.WebHookRoot == "" {
+                ctx.WebHookRoot = "/hook"
+            }
+            ctx.CheckPayload = os.Getenv("GHA2DB_SKIP_VERIFY_PAYLOAD") == ""
+            ctx.FullDeploy = os.Getenv("GHA2DB_SKIP_FULL_DEPLOY") == ""
+
+            // Tests
+            ctx.TestsYaml = os.Getenv("GHA2DB_TESTS_YAML")
+            if ctx.TestsYaml == "" {
+                ctx.TestsYaml = "tests.yaml"
+            }
+
+            // Skip dates
+            ctx.SkipDatesYaml = os.Getenv("GHA2DB_SKIP_DATES_YAML")
+            if ctx.SkipDatesYaml == "" {
+                ctx.SkipDatesYaml = "skip_dates.yaml"
+            }
+
+            // Main projects file
+            ctx.ProjectsYaml = os.Getenv("GHA2DB_PROJECTS_YAML")
+            if ctx.ProjectsYaml == "" {
+                ctx.ProjectsYaml = "projects.yaml"
+            }
+
+            // Main affiliations file
+            ctx.AffiliationsJSON = os.Getenv("GHA2DB_AFFILIATIONS_JSON")
+            if ctx.AffiliationsJSON == "" {
+                ctx.AffiliationsJSON = "github_users.json"
+            }
+
+            // Company acquisitions file
+            ctx.CompanyAcqYaml = os.Getenv("GHA2DB_COMPANY_ACQ_YAML")
+            if ctx.CompanyAcqYaml == "" {
+                ctx.CompanyAcqYaml = "companies.yaml"
+            }
+
+            // `get_repos` repositories dir
+            ctx.ReposDir = os.Getenv("GHA2DB_REPOS_DIR")
+            if ctx.ReposDir == "" {
+                ctx.ReposDir = os.Getenv("HOME") + "/devstats_repos/"
+            }
+            if ctx.ReposDir[len(ctx.ReposDir)-1:] != "/" {
+                ctx.ReposDir += "/"
+            }
+            // `get_repos`: process repos, process commits, external info
+            ctx.ProcessRepos = os.Getenv("GHA2DB_PROCESS_REPOS") != ""
+            ctx.ProcessCommits = os.Getenv("GHA2DB_PROCESS_COMMITS") != ""
+            ctx.ExternalInfo = os.Getenv("GHA2DB_EXTERNAL_INFO") != ""
+            ctx.ProjectsCommits = os.Getenv("GHA2DB_PROJECTS_COMMITS")
+
+            // PropagateOnlyVar
+            ctx.PropagateOnlyVar = os.Getenv("GHA2DB_PROPAGATE_ONLY_VAR") != ""
+            if ctx.PropagateOnlyVar {
+                only = os.Getenv("ONLY")
+                if only != "" {
+                    if ctx.ProjectsCommits == "" {
+                        ctx.ProjectsCommits = strings.Replace(only, " ", ",", -1)
+                    }
+                }
+            }
+
+            // `website_data` JSONs dir
+            ctx.JSONsDir = os.Getenv("GHA2DB_JSONS_DIR")
+            if ctx.JSONsDir == "" {
+                ctx.JSONsDir = "./jsons/"
+            }
+            if ctx.JSONsDir[len(ctx.JSONsDir)-1:] != "/" {
+                ctx.JSONsDir += "/"
+            }
+
+            // HTTP Timeout
+            if os.Getenv("GHA2DB_HTTP_TIMEOUT") == "" {
+                ctx.HTTPTimeout = 3
+            } else {
+                size, err := strconv.Atoi(os.Getenv("GHA2DB_HTTP_TIMEOUT"))
+                FatalNoLog(err)
+                ctx.HTTPTimeout = size
+            }
+            // HTTP RETRY
+            if os.Getenv("GHA2DB_HTTP_RETRY") == "" {
+                ctx.HTTPRetry = 5
+            } else {
+                retry, err := strconv.Atoi(os.Getenv("GHA2DB_HTTP_RETRY"))
+                FatalNoLog(err)
+                ctx.HTTPRetry = retry
+            }
+
+            // Skip writing to shared_db from projects.yaml
+            ctx.SkipSharedDB = os.Getenv("GHA2DB_SKIP_SHAREDDB") != ""
+
+            // Skip PID file
+            ctx.SkipPIDFile = os.Getenv("GHA2DB_SKIP_PIDFILE") != ""
+
+            // Skip company acquisitions file
+            ctx.SkipCompanyAcq = os.Getenv("GHA2DB_SKIP_COMPANY_ACQ") != ""
+
+            // Check provision flag
+            ctx.CheckProvisionFlag = os.Getenv("GHA2DB_CHECK_PROVISION_FLAG") != ""
+
+            // Set provision flag
+            ctx.CheckRunningFlag = os.Getenv("GHA2DB_CHECK_RUNNING_FLAG") != ""
+
+            // Set running flag
+            ctx.SetRunningFlag = os.Getenv("GHA2DB_SET_RUNNING_FLAG") != ""
+
+            mrfaS := os.Getenv("GHA2DB_MAX_RUNNING_FLAG_AGE")
+            if mrfaS == "" {
+                d, _ := time.ParseDuration("9h")
+                ctx.MaxRunningFlagAge = d
+            } else {
+                d, err := time.ParseDuration(mrfaS)
+                FatalNoLog(err)
+                ctx.MaxRunningFlagAge = d
+            }
+
+            // Check Imported SHAs
+            ctx.CheckImportedSHA = os.Getenv("GHA2DB_CHECK_IMPORTED_SHA") != ""
+            ctx.OnlyCheckImportedSHA = os.Getenv("GHA2DB_ONLY_CHECK_IMPORTED_SHA") != ""
+
+            // Calculate all periods?
+            ctx.ComputeAll = os.Getenv("GHA2DB_COMPUTE_ALL") != ""
+
+            // Forece compute periods
+            periods := os.Getenv("GHA2DB_FORCE_PERIODS")
+            if periods != "" {
+                ary := strings.Split(periods, ",")
+                for _, data := range ary {
+                    ary2 := strings.Split(data, ":")
+                    if len(ary2) != 2 {
+                        continue
+                    }
+                    period := ary2[0]
+                    shist := strings.TrimSpace(ary2[1])
+                    if shist != "t" && shist != "f" {
+                        continue
+                    }
+                    hist := false
+                    if shist == "t" {
+                        hist = true
+                    }
+                    if ctx.ComputePeriods == nil {
+                        ctx.ComputePeriods = make(map[string]map[bool]struct{})
+                    }
+                    _, ok := ctx.ComputePeriods[period]
+                    if !ok {
+                        ctx.ComputePeriods[period] = make(map[bool]struct{})
+                    }
+                    ctx.ComputePeriods[period][hist] = struct{}{}
+                }
+            }
+
+            // Max run durations
+            // MaxRunDuration map[string][2]int // From GHA2DB_MAX_RUN_DURATION "tags:1h:0,calc_metric:12h:1"
+            data := os.Getenv("GHA2DB_MAX_RUN_DURATION")
+            if data != "" {
+                ary := strings.Split(data, ",")
+                for _, data := range ary {
+                    ary2 := strings.Split(data, ":")
+                    if len(ary2) != 3 {
+                        continue
+                    }
+                    prog := strings.TrimSpace(ary2[0])
+                    durS := strings.TrimSpace(ary2[1])
+                    d, err := time.ParseDuration(durS)
+                    FatalNoLog(err)
+                    dur := int(d.Seconds())
+                    statusS := strings.TrimSpace(ary2[2])
+                    status, err := strconv.Atoi(statusS)
+                    FatalNoLog(err)
+                    if ctx.MaxRunDuration == nil {
+                        ctx.MaxRunDuration = make(map[string][2]int)
+                    }
+                    _, ok := ctx.MaxRunDuration[prog]
+                    if !ok {
+                        ctx.MaxRunDuration[prog] = [2]int{dur, status}
+                    } else {
+                        FatalNoLog(fmt.Errorf("program '%s' already defined (in MaxRunDuration): %+v", prog, ctx.MaxRunDuration))
+                    }
+                }
+            }
+
+            // Actor filtering?
+            ctx.ActorsFilter = os.Getenv("GHA2DB_ACTORS_FILTER") != ""
+            if ctx.ActorsFilter {
+                actorsAllow := os.Getenv("GHA2DB_ACTORS_ALLOW")
+                if actorsAllow != "" {
+                    ctx.ActorsAllow = regexp.MustCompile(actorsAllow)
+                }
+                actorsForbid := os.Getenv("GHA2DB_ACTORS_FORBID")
+                if actorsForbid != "" {
+                    ctx.ActorsForbid = regexp.MustCompile(actorsForbid)
+                }
+            }
+
+            // `merge_dbs` tool - input DBs and output DB
+            dbs := os.Getenv("GHA2DB_INPUT_DBS")
+            if dbs != "" {
+                ctx.InputDBs = strings.Split(dbs, ",")
+            }
+            ctx.OutputDB = os.Getenv("GHA2DB_OUTPUT_DB")
+
+            // RecentRange - ghapi2db will check issues/PRs from now() - this range to now()
+            ctx.RecentRange = os.Getenv("GHA2DB_RECENT_RANGE")
+            if ctx.RecentRange == "" {
+                ctx.RecentRange = "2 hours"
+            }
+            ctx.RecentReposRange = os.Getenv("GHA2DB_RECENT_REPOS_RANGE")
+            if ctx.RecentReposRange == "" {
+                ctx.RecentReposRange = "1 day"
+            }
+
+            // Enable drop metrics support
+            ctx.EnableMetricsDrop = os.Getenv("GHA2DB_ENABLE_METRICS_DROP") != ""
+
+            // Enable drop metrics support
+            ctx.RefreshCommitRoles = os.Getenv("GHA2DB_REFRESH_COMMIT_ROLES") != ""
+
+            // Project Scale
+            if os.Getenv("GHA2DB_PROJECT_SCALE") == "" {
+                ctx.ProjectScale = 1.0
+            } else {
+                projectScale, err := strconv.ParseFloat(os.Getenv("GHA2DB_PROJECT_SCALE"), 64)
+                FatalNoLog(err)
+                ctx.ProjectScale = projectScale
+            }
+
+            // CSV file
+            ctx.CSVFile = os.Getenv("GHA2DB_CSVOUT")
+
+            // RecalcReciprocal
+            if os.Getenv("GHA2DB_RECALC_RECIPROCAL") == "" {
+                ctx.RecalcReciprocal = 24
+            } else {
+                rr, err := strconv.Atoi(os.Getenv("GHA2DB_RECALC_RECIPROCAL"))
+                FatalNoLog(err)
+                if rr > 0 {
+                    ctx.RecalcReciprocal = rr
+                } else {
+                    ctx.RecalcReciprocal = 24
+                }
+            }
+
+            // MaxHistograms
+            if os.Getenv("GHA2DB_MAX_HIST") != "" {
+                mh, err := strconv.Atoi(os.Getenv("GHA2DB_MAX_HIST"))
+                FatalNoLog(err)
+                if mh > 0 {
+                    ctx.MaxHistograms = mh
+                }
+            }
+
+            // Context out if requested
+            if ctx.CtxOut {
+                ctx.Print()
+            }
+            */
         }
     }
 }
