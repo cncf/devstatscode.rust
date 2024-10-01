@@ -4,6 +4,8 @@ pub mod lib {
     use std::env;
     use std::time::{Duration, SystemTime};
 
+    const DEFAULT_DATA_DIR: &str = "/etc/gha2db/";
+
     #[derive(Debug)]
     pub struct Ctx {
         pub data_dir: String,                // From GHA2DB_DATADIR, default /etc/gha2db/
@@ -155,8 +157,16 @@ pub mod lib {
 
     fn env_is_empty(var_name: &str) -> bool {
         match env::var(var_name) {
-            Ok(s) => s == "",
+            Ok(val) => val.trim() == "",
             _ => true,
+        }
+    }
+
+    fn env_or_default(var_name: &str, default_value: String) -> String {
+        match env::var(var_name) {
+            Ok(val) if val.trim() != "" => val,
+            Ok(val) if val.trim() == "" => default_value,
+            _ => default_value,
         }
     }
 
@@ -187,6 +197,19 @@ pub mod lib {
             let commits_files_stats_enabled = env_is_empty("GHA2DB_SKIP_COMMITS_FILES");
             let commits_loc_stats_enabled = env_is_empty("GHA2DB_SKIP_COMMITS_LOC");
 
+            // Data directory
+            let data_dir = env_or_default("GHA2DB_DATADIR", DEFAULT_DATA_DIR.to_string());
+            if !data_dir.ends_with('/') {
+                data_dir += "/";
+            }
+
+            // Outputs
+            let json_out = !env_is_empty("GHA2DB_JSON");
+            let db_out = env_is_empty("GHA2DB_NODB");
+
+            // Dry run
+            let dry_run = !env_is_empty("GHA2DB_DRY_RUN");
+
             Ctx {
                 exec_fatal: exec_fatal,
                 exec_quiet: exec_quiet,
@@ -196,24 +219,12 @@ pub mod lib {
                 allow_rand_tags_cols_compute: allow_rand_tags_cols_compute,
                 commits_files_stats_enabled: commits_files_stats_enabled,
                 commits_loc_stats_enabled: commits_loc_stats_enabled,
+                data_dir: data_dir,
+                json_out: json_out,
+                db_out: db_out,
+                dry_run: dry_run,
             }
             /*
-            // Data directory
-            ctx.DataDir = os.Getenv("GHA2DB_DATADIR")
-            if ctx.DataDir == "" {
-                ctx.DataDir = DefaultDataDir
-            }
-            if ctx.DataDir[len(ctx.DataDir)-1:] != "/" {
-                ctx.DataDir += "/"
-            }
-
-            // Outputs
-            ctx.JSONOut = os.Getenv("GHA2DB_JSON") != ""
-            ctx.DBOut = os.Getenv("GHA2DB_NODB") == ""
-
-            // Dry run
-            ctx.DryRun = os.Getenv("GHA2DB_DRY_RUN") != ""
-
             // GitHub API points and waiting for reset
             ctx.MinGHAPIPoints = 1
             if os.Getenv("GHA2DB_MIN_GHAPI_POINTS") != "" {
