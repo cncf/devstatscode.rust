@@ -11,9 +11,9 @@ pub mod lib {
     #[derive(Debug)]
     pub struct Ctx {
         pub data_dir: String, // From GHA2DB_DATADIR, default /etc/gha2db/
-        pub debug: u8, // From GHA2DB_DEBUG Debug level: 0-no, 1-info, 2-verbose, including SQLs, default 0
-        // pub cmd_debug: u8, // From GHA2DB_CMDDEBUG Commands execution Debug level: 0-no, 1-only output commands, 2-output commands and their output, 3-output full environment as well, default 0
-        // pub github_debug: u8, // From GHA2DB_GITHUB_DEBUG debug GitHub rate limits
+        pub debug: i8, // From GHA2DB_DEBUG Debug level: 0-no, 1-info, 2-verbose, including SQLs, default 0
+        pub cmd_debug: i8, // From GHA2DB_CMDDEBUG Commands execution Debug level: 0-no, 1-only output commands, 2-output commands and their output, 3-output full environment as well, default 0
+        pub github_debug: i8, // From GHA2DB_GITHUB_DEBUG debug GitHub rate limits
         pub dry_run: bool, // From GHA2DB_DRY_RUN, import_affs tool - stop before doing any updates
         pub json_out: bool, // From GHA2DB_JSON gha2db: write JSON files? default false
         pub db_out: bool,  // From GHA2DB_NODB gha2db: write to SQL database, default true
@@ -180,7 +180,7 @@ pub mod lib {
             Ok(s) => s,
             Err(e) => {
                 fatal_no_log::<T, String>(&Err(format!(
-                    "cannot convert '{:?}' to integer, error: '{:?}'",
+                    "cannot convert {:?} to integer, error: '{:?}'",
                     s, e
                 )));
                 // Never gets there, but rust needs this
@@ -220,7 +220,7 @@ pub mod lib {
             Ok(val) => string_to_num_must::<T>(&val),
             _ => {
                 fatal_no_log::<T, String>(&Err(format!(
-                    "cannot convert env variable ' {:?}' (no value) to string",
+                    "cannot convert env variable {:?} (no value) to string",
                     var_name
                 )));
                 // Never gets there, but rust needs this
@@ -298,12 +298,27 @@ pub mod lib {
             }
 
             // Debug
-            //
             let mut debug = 0;
             if !env_is_empty("GHA2DB_DEBUG") {
-                let debug_level = env_number::<u8>("GHA2DB_DEBUG");
+                let debug_level = env_number::<i8>("GHA2DB_DEBUG");
                 if debug_level != 0 {
                     debug = debug_level;
+                }
+            }
+
+            let mut cmd_debug = 0;
+            if !env_is_empty("GHA2DB_CMDDEBUG") {
+                let debug_level = env_number::<i8>("GHA2DB_CMDDEBUG");
+                if debug_level != 0 {
+                    cmd_debug = debug_level;
+                }
+            }
+
+            let mut github_debug = 0;
+            if !env_is_empty("GHA2DB_GITHUB_DEBUG") {
+                let debug_level = env_number::<i8>("GHA2DB_GITHUB_DEBUG");
+                if debug_level != 0 {
+                    github_debug = debug_level;
                 }
             }
 
@@ -324,24 +339,10 @@ pub mod lib {
                 max_ghapi_wait_seconds: max_ghapi_wait_seconds,
                 max_ghapi_retry: max_ghapi_retry,
                 debug: debug,
+                cmd_debug: cmd_debug,
+                github_debug: github_debug,
             }
             /*
-            // CmdDebug
-            if os.Getenv("GHA2DB_CMDDEBUG") == "" {
-                ctx.CmdDebug = 0
-            } else {
-                debugLevel, err := strconv.Atoi(os.Getenv("GHA2DB_CMDDEBUG"))
-                FatalNoLog(err)
-                ctx.CmdDebug = debugLevel
-            }
-            // GitHubDebug
-            if os.Getenv("GHA2DB_GITHUB_DEBUG") == "" {
-                ctx.GitHubDebug = 0
-            } else {
-                debugLevel, err := strconv.Atoi(os.Getenv("GHA2DB_GITHUB_DEBUG"))
-                FatalNoLog(err)
-                ctx.GitHubDebug = debugLevel
-            }
             ctx.QOut = os.Getenv("GHA2DB_QOUT") != ""
             ctx.CtxOut = os.Getenv("GHA2DB_CTXOUT") != ""
 
