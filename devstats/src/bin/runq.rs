@@ -28,6 +28,7 @@ fn main() {
     // xxx
     println!("ctx is {ctx:?}");
     let elapsed = dt_start.elapsed();
+    lib::fatal_no_log(&elapsed);
     if ctx.debug >= 0 {
         // xxx
         println!("Time: {:?}", elapsed.expect("cannot get elapsed time"));

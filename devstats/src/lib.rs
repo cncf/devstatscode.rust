@@ -151,11 +151,17 @@ pub mod lib {
     }
 
     // Logging stuff
-    fn fatal_no_log(res: Result<(), String>) {
+    pub fn fatal_no_log<T, E: std::fmt::Debug>(res: &Result<T, E>) {
         match res {
             Ok(_) => {}
-            // xxx: sync with go
-            Err(s) => panic!("error: {:?}", s),
+            Err(e) => panic!("error: {:?}", e),
+        }
+    }
+
+    fn fatal_no_log_str(res: Result<(), String>) {
+        match res {
+            Ok(_) => {}
+            Err(_) => fatal_no_log(&res),
         }
     }
 
@@ -173,7 +179,7 @@ pub mod lib {
         match r {
             Ok(s) => s,
             Err(e) => {
-                fatal_no_log(Err(format!(
+                fatal_no_log::<T, String>(&Err(format!(
                     "cannot convert '{:?}' to integer, error: '{:?}'",
                     s, e
                 )));
@@ -213,7 +219,7 @@ pub mod lib {
         match env::var(var_name) {
             Ok(val) => string_to_num_must::<T>(&val),
             _ => {
-                fatal_no_log(Err(format!(
+                fatal_no_log::<T, String>(&Err(format!(
                     "cannot convert env variable ' {:?}' (no value) to string",
                     var_name
                 )));
@@ -230,6 +236,7 @@ pub mod lib {
         }
     }
 
+    /**/
     impl Default for Ctx {
         fn default() -> Self {
             // xxx
@@ -274,6 +281,22 @@ pub mod lib {
                 }
             }
 
+            let max_ghapi_wait_seconds = 10;
+            if !env_is_empty("GHA2DB_MAX_GHAPI_WAIT") {
+                let secs = env_number::<i16>("GHA2DB_MAX_GHAPI_WAIT");
+                if secs >= 0 {
+                    max_ghapi_wait_seconds = secs;
+                }
+            }
+
+            let max_ghapi_retry = 6;
+            if !env_is_empty("GHA2DB_MAX_GHAPI_RETRY") {
+                let tr = env_number::<i16>("GHA2DB_MAX_GHAPI_RETRY");
+                if tr >= 1 {
+                    max_ghapi_retry = tr;
+                }
+            }
+
             Ctx {
                 exec_fatal: exec_fatal,
                 exec_quiet: exec_quiet,
@@ -288,25 +311,10 @@ pub mod lib {
                 db_out: db_out,
                 dry_run: dry_run,
                 min_ghapi_points: min_ghapi_points,
+                max_ghapi_wait_seconds: max_ghapi_wait_seconds,
+                max_ghapi_retry: max_ghapi_retry,
             }
             /*
-            ctx.MaxGHAPIWaitSeconds = 10
-            if os.Getenv("GHA2DB_MAX_GHAPI_WAIT") != "" {
-                secs, err := strconv.Atoi(os.Getenv("GHA2DB_MAX_GHAPI_WAIT"))
-                FatalNoLog(err)
-                if secs >= 0 {
-                    ctx.MaxGHAPIWaitSeconds = secs
-                }
-            }
-            ctx.MaxGHAPIRetry = 6
-            if os.Getenv("GHA2DB_MAX_GHAPI_RETRY") != "" {
-                tr, err := strconv.Atoi(os.Getenv("GHA2DB_MAX_GHAPI_RETRY"))
-                FatalNoLog(err)
-                if tr >= 1 {
-                    ctx.MaxGHAPIRetry = tr
-                }
-            }
-
             // Debug
             if os.Getenv("GHA2DB_DEBUG") == "" {
                 ctx.Debug = 0
@@ -935,4 +943,5 @@ pub mod lib {
             */
         }
     }
+    /**/
 }
