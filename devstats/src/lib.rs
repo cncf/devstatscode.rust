@@ -2,6 +2,8 @@ pub mod lib {
     use regex::Regex;
     use std::collections::{HashMap, HashSet};
     use std::env;
+    use std::fmt::Debug;
+    use std::str::FromStr;
     use std::time::{Duration, SystemTime};
 
     const DEFAULT_DATA_DIR: &str = "/etc/gha2db/";
@@ -148,6 +150,40 @@ pub mod lib {
         pub allow_rand_tags_cols_compute: bool, // If set, then tags and columns will only be computed at random 0-5 hour, otherwise always when hour<6.
     }
 
+    // Logging stuff
+    fn fatal_no_log(res: Result<(), String>) {
+        match res {
+            Ok(_) => {}
+            // xxx: sync with go
+            Err(s) => panic!("error: {:?}", s),
+        }
+    }
+
+    // String stuff
+    fn string_to_num<T: FromStr>(s: &str) -> Result<T, T::Err> {
+        s.parse::<T>()
+    }
+
+    fn string_to_num_must<T: FromStr>(s: &str) -> T
+    where
+        <T as FromStr>::Err: Debug,
+    {
+        // let r = string_to_num::<T>(s);
+        let r: Result<T, T::Err> = s.parse::<T>();
+        match r {
+            Ok(s) => s,
+            Err(e) => {
+                fatal_no_log(Err(format!(
+                    "cannot convert '{:?}' to integer, error: '{:?}'",
+                    s, e
+                )));
+                // Never gets there, but rust needs this
+                string_to_num::<T>("0").ok().unwrap()
+            }
+        }
+    }
+
+    // Environment stuff
     fn env_is_set(var_name: &str) -> bool {
         match env::var(var_name) {
             Ok(_) => true,
@@ -170,11 +206,30 @@ pub mod lib {
         }
     }
 
+    fn env_number<T: FromStr>(var_name: &str) -> T
+    where
+        <T as FromStr>::Err: Debug,
+    {
+        match env::var(var_name) {
+            Ok(val) => string_to_num_must::<T>(&val),
+            _ => {
+                fatal_no_log(Err(format!(
+                    "cannot convert env variable ' {:?}' (no value) to string",
+                    var_name
+                )));
+                // Never gets there, but rust needs this
+                string_to_num::<T>("0").ok().unwrap()
+            }
+        }
+    }
+
+    // Ctx implementation
     impl Ctx {
         pub fn new() -> Self {
             Default::default()
         }
     }
+
     impl Default for Ctx {
         fn default() -> Self {
             // xxx
@@ -210,6 +265,15 @@ pub mod lib {
             // Dry run
             let dry_run = !env_is_empty("GHA2DB_DRY_RUN");
 
+            // GitHub API points and waiting for reset
+            let min_ghapi_points = 1i16;
+            if !env_is_empty("GHA2DB_MIN_GHAPI_POINTS") {
+                let pts = env_number::<i16>("GHA2DB_MIN_GHAPI_POINTS");
+                if pts >= 0 {
+                    min_ghapi_points = pts;
+                }
+            }
+
             Ctx {
                 exec_fatal: exec_fatal,
                 exec_quiet: exec_quiet,
@@ -223,17 +287,9 @@ pub mod lib {
                 json_out: json_out,
                 db_out: db_out,
                 dry_run: dry_run,
+                min_ghapi_points: min_ghapi_points,
             }
             /*
-            // GitHub API points and waiting for reset
-            ctx.MinGHAPIPoints = 1
-            if os.Getenv("GHA2DB_MIN_GHAPI_POINTS") != "" {
-                pts, err := strconv.Atoi(os.Getenv("GHA2DB_MIN_GHAPI_POINTS"))
-                FatalNoLog(err)
-                if pts >= 0 {
-                    ctx.MinGHAPIPoints = pts
-                }
-            }
             ctx.MaxGHAPIWaitSeconds = 10
             if os.Getenv("GHA2DB_MAX_GHAPI_WAIT") != "" {
                 secs, err := strconv.Atoi(os.Getenv("GHA2DB_MAX_GHAPI_WAIT"))
