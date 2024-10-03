@@ -1,7 +1,7 @@
 pub fn fatal_no_log<T, E: std::fmt::Debug>(res: &Result<T, E>) {
     match res {
         Ok(_) => {}
-        Err(e) => panic!("error: {:?}", e),
+        Err(e) => panic!("error({:?}): {:?}", std::any::type_name::<T>(), e),
     }
 }
 

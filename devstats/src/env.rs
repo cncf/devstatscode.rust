@@ -28,8 +28,9 @@ where
         Ok(val) => string_to_num_must::<T>(&val),
         _ => {
             fatal_no_log::<T, String>(&Err(format!(
-                "cannot convert env variable {:?} (no value) to string",
-                var_name
+                "cannot convert env variable {:?} ({:?} no value) to string",
+                var_name,
+                std::any::type_name::<T>(),
             )));
             // Never gets there, but rust needs this
             string_to_num::<T>("0").ok().unwrap()
