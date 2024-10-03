@@ -27,10 +27,10 @@ fn main() {
     let ctx = runq(&args[1], &args[2..]);
     // xxx
     println!("ctx is {ctx:?}");
-    let elapsed = dt_start.elapsed();
-    lib::fatal_no_log(&elapsed);
+    let res_elapsed = dt_start.elapsed();
+    lib::fatal_no_log(&res_elapsed);
     if ctx.debug >= 0 {
         // xxx
-        println!("Time: {:?}", elapsed.expect("cannot get elapsed time"));
+        println!("Time: {:?}", res_elapsed.expect("cannot get elapsed time"));
     }
 }
