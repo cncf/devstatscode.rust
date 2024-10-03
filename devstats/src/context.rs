@@ -251,13 +251,29 @@ impl Default for Ctx {
 
         // Postgres DB
         let mut pg_host = env_or_default("PG_HOST", "".to_string());
-        let pg_port = env_or_default("PG_PORT", "".to_string());
-        let pg_db = env_or_default("PG_DB", "".to_string());
-        let pg_user = env_or_default("PG_USER", "".to_string());
-        let pg_pass = env_or_default("PG_PASS", "".to_string());
-        let pg_ssl = env_or_default("PG_SSL", "".to_string());
+        let mut pg_port = env_or_default("PG_PORT", "".to_string());
+        let mut pg_db = env_or_default("PG_DB", "".to_string());
+        let mut pg_user = env_or_default("PG_USER", "".to_string());
+        let mut pg_pass = env_or_default("PG_PASS", "".to_string());
+        let mut pg_ssl = env_or_default("PG_SSL", "".to_string());
+
         if pg_host == "" {
             pg_host = DEFAULT_PG_HOST.to_string();
+        }
+        if pg_port == "" {
+            pg_port = DEFAULT_PG_PORT.to_string();
+        }
+        if pg_db == "" {
+            pg_db = DEFAULT_PG_DB.to_string();
+        }
+        if pg_user == "" {
+            pg_user = DEFAULT_PG_USER.to_string();
+        }
+        if pg_pass == "" {
+            pg_pass = DEFAULT_PG_PASS.to_string();
+        }
+        if pg_ssl == "" {
+            pg_ssl = DEFAULT_PG_SSL.to_string();
         }
 
         Ctx {
@@ -291,25 +307,6 @@ impl Default for Ctx {
             pg_ssl: pg_ssl,
         }
         /*
-        if ctx.PgHost == "" {
-            ctx.PgHost = Localhost
-        }
-        if ctx.PgPort == "" {
-            ctx.PgPort = "5432"
-        }
-        if ctx.PgDB == "" {
-            ctx.PgDB = GHA
-        }
-        if ctx.PgUser == "" {
-            ctx.PgUser = GHAAdmin
-        }
-        if ctx.PgPass == "" {
-            ctx.PgPass = Password
-        }
-        if ctx.PgSSL == "" {
-            ctx.PgSSL = "disable"
-        }
-
         // PID file
         ctx.PidFileRoot = os.Getenv("GHA2DB_PID_FILE_ROOT")
         if ctx.PidFileRoot == "" {
